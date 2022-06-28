@@ -4,10 +4,9 @@ const jwt = require('jsonwebtoken')
 
 // Checks the validity of requested body is string or not
 const stringV = function(value) {
-    let a = typeof(value)
-    if (a !== 'string') {
-        return true
-    } else return false
+    if (typeof value === undefined || value === null) return true
+    if (typeof value === 'string' && value.trim().length === 0) return true
+    return false
 }
 
 const createAuthor = async function(req, res) {
@@ -15,7 +14,7 @@ const createAuthor = async function(req, res) {
 
         const { fname, lname, title, emailId, password } = req.body
 
-        if (!(fname && lname && title && emailId && password)) {
+        if (Object.keys(req.body).length === 0) {
             return res.status(400).send({ status: false, msg: "Please enter all the details(fname, lname, title, emailId, password)." })
         }
 
@@ -31,12 +30,12 @@ const createAuthor = async function(req, res) {
         }
 
         if (stringV(emailId) || !validator.isEmail(emailId)) {
-            return res.status(400).send({ status: false, mgs: "Email Id is not in correct format." })
+            return res.status(400).send({ status: false, mgs: `${emailId}: Email not in correct format.` })
         }
 
         let duplicate = await authorModel.findOne({ emailId: emailId })
         if (duplicate) {
-            return res.status(400).send({ status: false, msg: "Email Id is already registered." })
+            return res.status(400).send({ status: false, msg: `${emailId}: Already registered email.` })
         }
 
         if (stringV(password)) {
@@ -61,36 +60,48 @@ const createAuthor = async function(req, res) {
         res.status(201).send({ status: true, data: saveData })
 
     } catch (error) {
+        console.log(error)
         return res.status(500).send({ status: false, msg: error.message })
     }
 }
 
 const login = async(req, res) => {
     try {
-        let username = req.body.emailId
-        let password = req.body.password
+        const { emailId, password } = req.body
 
-        if (!username || !password) {
-            return res.status(400).send({ status: false, msg: "Please Enter email id and password both." })
+        if (Object.keys(req.body).length === 0) {
+            return res.status(400).send({ status: false, msg: "Invalid request. Kindly provide details" })
         }
 
-        let author = await authorModel.findOne({ emailId: username }).select({ emailId: 1, password: 1 })
+        if (stringV(emailId)) {
+            return res.status(400).send({ status: false, msg: "Email is required" })
+        }
+
+        let author = await authorModel.findOne({ emailId: emailId }).select({ emailId: 1, password: 1 })
         if (!author) {
             return res.status(400).send({ status: false, msg: "Please enter correct email." })
         }
 
+        if (stringV(password)) {
+            return res.status(400).send({ status: false, msg: "Password is required" })
+        }
 
         if (password !== author.password) {
-            return res.status(401).send({ status: false, msg: "Email Id and password are not matched. Enter the correct password." })
+            return res.status(401).send({ status: false, msg: "Invalid login credentials. Kindly enter the correct password." })
         }
 
         let token = jwt.sign({ authorId: author._id.toString(), batch: "Radon" }, //payload
             "mahesh-rajat-blog" //secret key
         );
         res.setHeader("x-api-key", token)
-        res.status(201).send({ status: true, data: token })
+        res.status(201).send({
+            status: true,
+            msg: "Author login successfull",
+            data: { token }
+        })
 
     } catch (error) {
+        console.log(error)
         res.status(500).send({ status: false, msg: error.message })
     }
 }

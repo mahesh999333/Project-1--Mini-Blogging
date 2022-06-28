@@ -1,4 +1,3 @@
-const { count } = require("console")
 const blogModel = require("../models/blogModel")
 const authorModel = require("../models/authorModel")
 const validator = require('validator');
@@ -7,10 +6,9 @@ const jwt = require("jsonwebtoken");
 
 
 const stringV = function(value) {
-    let a = typeof(value)
-    if (a !== 'string') {
-        return true
-    } else return false
+    if (typeof value === undefined || value === null) return true
+    if (typeof value === 'string' && value.trim().length === 0) return true
+    return false
 }
 
 const idV = function(value) {
@@ -25,7 +23,7 @@ const idV = function(value) {
 const createBlog = async function(req, res) {
 
     try {
-        const { title, body, authorId, tags, category, subCategory, isPublished } = req.body
+        const { title, body, authorId, tags, category, subcategory, isPublished } = req.body
 
         if ((authorId) == null) {
             return res.status(400).send({ status: false, msg: "Invalid Request" })
@@ -50,16 +48,16 @@ const createBlog = async function(req, res) {
             return res.status(400).send({ status: false, msg: "Category is not valid" })
         }
 
-        if (typeof(subCategory) !== `object`) {
+        if (typeof(subcategory) !== `object`) {
             return res.status(400).send({ status: false, msg: "Sub-Category is not valid" })
         }
 
         let a = await authorModel.findById(authorId).select({ _id: 1 })
         if (a == null) {
-            return res.status(400).send({ status: false, msg: "Author ID doesn't exist's." })
+            return res.status(400).send({ status: false, msg: "Author doesn't exist's." })
         }
 
-        if (isPublished == true) {
+        if (isPublished === true) {
             req.body.publishedAt = Date.now()
             let saveData = await blogModel.create(req.body)
             return res.status(201).send({ status: true, data: saveData })
@@ -79,36 +77,36 @@ const createBlog = async function(req, res) {
 const getblogs = async(req, res) => {
     try {
         let result = { isDeleted: false, isPublished: true }
-        let { authorId, category, tags, subCategory } = req.query
+        let { authorId, category, tags, subcategory } = req.query
+        if (Object.keys(req.query) !== 0) {
+            if (authorId) {
+                if (stringV(authorId) && idV(authorId)) {
+                    return res.status(400).send({ status: false, msg: "Enter valid authorId" })
+                } else {
+                    result.authorId = authorId
+                }
+            }
 
-        if (authorId) {
-            if (idV(authorId)) {
-                return res.status(400).send({ status: false, msg: "Enter valid authorId" })
-            } else {
-                result.authorId = authorId
+            if (stringV(category)) {
+                result.category = category
+            }
+
+            if (tags) {
+                result.tags = { $in: [tags] }
+            }
+            if (subcategory) {
+                result.subCategory = { $in: [subcategory] }
             }
         }
-
-        if (category) {
-            result.category = category
-        }
-
-        if (tags) {
-            result.tags = { $in: [tags] }
-        }
-        if (subCategory) {
-            result.subCategory = { $in: [subCategory] }
-        }
-
-        console.log(result)
-
         let blog = await blogModel.find(result)
-        if (blog == null) {
+        if (blog.length === null) {
             return res.status(404).send({ status: true, msg: "No document found." })
         }
 
+
         return res.status(200).send({ status: true, data: blog })
     } catch (error) {
+        console.log(error)
         return res.status(500).send({ status: false, msg: error.message })
     }
 }
@@ -120,10 +118,11 @@ const updateBlog = async function(req, res) {
 
     try {
         let data = req.params.blogId
-        const { title, body, tags, subCategory } = req.body
+        const { title, body, tags, category, subcategory, isPublished } = req.body
 
-        if (!(title && body && tags && subCategory)) {
-            return res.status(400).send({ status: false, msg: "Please enter all details (Title, Body, tags, subCategory)." })
+        const result = {}
+        if (Object.keys(req.body).length === 0) {
+            return res.status(400).send({ status: false, msg: "Please enter details." })
         }
 
         let b = await blogModel.findById(data).select({ _id: 1, isDeleted: 1 })
@@ -131,16 +130,51 @@ const updateBlog = async function(req, res) {
             return res.status(404).send({ status: false, msg: "Blog is deleted" })
         }
 
-        let result = await blogModel.findOneAndUpdate({ _id: data }, {
-            title: title,
-            body: body,
-            $addToSet: { tags: tags, subCategory: subCategory }, //$addToSet :- is basically used to add any element in the array type only for one time
-            //$push is used as we can add elemetents in the array for multiple number of times.
-            isPublished: true,
-            publishedAt: Date.now()
-        }, { new: true })
+        if (title) {
+            result.title = title
+        }
 
-        return res.status(200).send({ status: true, data: result })
+        if (body) {
+            result.body = body
+        }
+
+        if (category) {
+            result.category = category
+        }
+
+        if (tags) {
+            if (Array.isArray(tags)) {
+                result.tags = result[`$addToSet`][tags] = { $each: [...tags] }
+
+                if (typeof tags === 'string') {
+                    result[`$addToSet`][tags] = tags
+                }
+            }
+        }
+
+        if (subcategory) {
+            if (Array.isArray(subcategory)) {
+                result.subcategory = {
+                    $addToSet: { $each: [...subcategory] }
+                }
+            }
+            if (typeof subcategory === 'string') {
+                result.subcategory = { $push: { subcategory: subcategory } }
+            }
+        }
+        if (isPublished !== undefined) {
+            result['$set']['isPublished'] = isPublished
+            result['$set']['publishedAt'] = Date.now()
+        }
+
+        console.log(result)
+        let blog = await blogModel.find(result)
+        if (blog.length === null) {
+            return res.status(404).send({ status: true, msg: "No document found." })
+        }
+        let final = await blogModel.findOneAndUpdate({ _id: data }, result, { new: true })
+            //  console.log(final)
+        return res.status(200).send({ status: true, data: final })
 
     } catch (error) {
         return res.status(500).send({ status: false, msg: error.message })
@@ -172,45 +206,73 @@ const deleteBlogByParams = async function(req, res) {
 //<--------------------------------------------Delete Blog by Query Parameters------------------------------------------------->
 
 const deleteBlogByQuery = async function(req, res) {
-    const { category, authorId, isPublished, tags, subCategory } = req.query
+    try {
+        const { category, authorId, isPublished, tags, subcategory } = req.query
+        const result = { isDeleted: false }
 
-    if (!(category || authorId || isPublished || tags || subCategory)) {
-        return res.status(400).send({ status: false, msg: "Kindly enter any value" })
+        if (Object.keys(req.query).length === 0) {
+            return res.status(400).send({ status: false, msg: "No blog to be deleted. Aborting deletion" })
+        }
+
+        if (stringV(authorId) || idV(authorId)) {
+            return res.status(400).send({ status: false, msg: "Author ID is not valid." })
+        }
+        //console.log(authorId)
+
+        let b = await blogModel.find({ authorId: authorId }).select({ _id: 1, isDeleted: 1 })
+
+        if (b == null) {
+            return res.status(404).send({ status: false, msg: "Blog document doesn't exists." })
+        }
+
+        let token = req.headers["x-Api-key"]
+        if (!token) token = req.headers["x-api-key"]
+        let decodedToken = jwt.verify(token, "mahesh-rajat-blog");
+
+
+        let authorLoggedIn = decodedToken.authorId
+
+        if (authorId != authorLoggedIn) {
+
+            return res.status(403).send({ status: false, msg: 'Access is Denied' })
+
+        }
+
+        if (authorId) {
+            if (stringV(authorId) && idV(authorId)) {
+                return res.status(400).send({ status: false, msg: "Enter valid authorId" })
+            } else {
+                result.authorId = authorId
+            }
+        }
+
+        if (stringV(category)) {
+            result.category = category
+        }
+
+        if (tags) {
+            result.tags = { $in: [tags] }
+        }
+
+        if (subcategory) {
+            result.subCategory = { $in: [subcategory] }
+        }
+
+        if (isPublished) {
+            result.isPublished = isPublished
+        }
+        const blog = await blogModel.find(result)
+        if (blog.length === 0) {
+            return res.status(200).send({ status: true, msg: "No blog found." })
+        }
+
+        const d = await blogModel.updateMany(result, { isDeleted: true, deletedAt: Date.now(), new: true })
+
+        return res.status(200).send({ status: true, msg: "Blog(s) deleted successfully." })
+    } catch (error) {
+        console.log(error)
+        return res.status(500).send({ status: false, msg: error.message })
     }
-
-    if (stringV(authorId) || idV(authorId)) {
-        return res.status(400).send({ status: false, msg: "Author ID is not valid." })
-    }
-    // console.log(authorId)
-
-    let b = await blogModel.find({ authorId: authorId }).select({ _id: 1, isDeleted: 1 })
-
-    if (b == null) {
-        return res.status(404).send({ status: false, msg: "Blog document doesn't exists." })
-    }
-
-    let token = req.headers["x-Api-key"]
-    if (!token) token = req.headers["x-api-key"]
-    let decodedToken = jwt.verify(token, "mahesh-rajat-blog");
-
-
-    let authorLoggedIn = decodedToken.authorId
-
-    if (authorId != authorLoggedIn) {
-
-        return res.status(403).send({ status: false, msg: 'Access is Denied' })
-
-    }
-
-    const d = await blogModel.updateMany({
-        $or: [{ category: category },
-            { authorId: authorId },
-            { tags: { $in: [tags] } },
-            { subCategory: { $in: [subCategory] } }
-        ]
-    }, { isDeleted: true, deletedAt: Date.now(), new: true })
-
-    return res.status(200).send({ status: true, data: d })
 }
 
 

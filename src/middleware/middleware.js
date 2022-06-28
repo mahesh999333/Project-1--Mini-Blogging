@@ -29,15 +29,16 @@ const auth = async function(req, res, next) {
 
         if (!token) { return res.status(401).send({ status: false, msg: "Token must be present in request headers" }) }
 
-        let decoded = jwt.decode(token)
+        let decoded = jwt.verify(token, "mahesh-rajat-blog")
         if (!decoded) {
             return res.status(401).send({ status: false, msg: "Token is Incorrect" })
         }
 
+       
+
     } catch (error) {
         return res.status(500).send({ status: false, msg: error.message })
     }
-
     next()
 }
 
@@ -52,7 +53,7 @@ const authorisation = async function(req, res, next) {
         let blogId = req.params.blogId
 
         if (idV(blogId)) {
-            return res.status(404).send({ status: false, msg: "Blog ID is not valid." })
+            return res.status(400).send({ status: false, msg: "Blog ID is not valid." })
         }
 
         let a = await blogModel.findById(blogId).select({ authorId: 1, _id: 0 })
@@ -72,7 +73,7 @@ const authorisation = async function(req, res, next) {
     } catch (error) {
         return res.status(500).send({ status: false, msg: error.message })
     }
-    return res.send("ok")
+    
     next()
 }
 
