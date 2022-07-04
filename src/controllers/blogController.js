@@ -165,44 +165,6 @@ const updateBlog = async function (req, res) {
 }
 
 
-
-
-
-
-// const updateBlog = async function(req, res) {
-
-//    try{
-
-//     let authorTokenId = req.authorId
-//     // getting blog Object id from params
-//     let blogId = req.params.blogId  
-
-//     if(idV(blogId)){
-//         return  res.status(400).send({ status: false, msg: "Please provide a valid Blog id" })
-//     }
-
-//     // This blogId is present in db or not
-//     let blog = await blogModel.findById(blogId)    
-//     if(blog.authorId.toString()!==authorTokenId){
-//         return res.status(403).send({ status: false, msg: "you are not autharise for Update anoter person data" })
-//     }
-//       //if not present then send error mess
-//     if (!blog || blog.isDeleted == true) {
-//         return res.status(404).send({ status: false, msg: "No such blog exists" });
-//     }
-
-//     // getting all the requested data form body for updatation
-//     let blogData = req.body;
-
-
-//    }
-//    catch (error) {
-//     console.log(error)
-//     return res.status(500).send({ status: false, msg: error.message })
-// }
-// }
-
-
 //<--------------------------------------Delete Blog by Path Parameters---------------------------------------->
 
 const deleteBlogByParams = async function (req, res) {
