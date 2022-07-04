@@ -130,3 +130,75 @@ Refer below sample
 #### Refer https://jsonplaceholder.typicode.com/guide/ for some fake blogs data.
 
 #### Note: Create a group database and use the same database in connection string by replacing `groupXDatabase
+
+
+
+
+
+
+
+
+
+ <!-- try {
+        let data = req.params.blogId
+        const { title, body, tags, category, subcategory, isPublished } = req.body
+
+        const result = {}
+        if (Object.keys(req.body).length === 0) {
+            return res.status(400).send({ status: false, msg: "Please enter details." })
+        }
+
+        let b = await blogModel.findById(data).select({ _id: 1, isDeleted: 1 })
+        if (b.isDeleted == true) {
+            return res.status(404).send({ status: false, msg: "Blog is deleted" })
+        }
+
+        if (title) {
+            result.title = title
+        }
+
+        if (body) {
+            result.body = body
+        }
+
+        if (category) {
+            result.category = category
+        }
+
+        if (tags) {
+            if (Array.isArray(tags)) {
+                result.tags = result[`$addToSet`][tags] = { $each: [...tags] }
+
+                if (typeof tags === 'string') {
+                    result[`$addToSet`][tags] = tags
+                }
+            }
+        }
+
+        if (subcategory) {
+            if (Array.isArray(subcategory)) {
+                result.subcategory = {
+                    $addToSet: { $each: [...subcategory] }
+                }
+            }
+            if (typeof subcategory === 'string') {
+                result.subcategory = { $push: { subcategory: subcategory } }
+            }
+        }
+        if (isPublished !== undefined) {
+            result['$set']['isPublished'] = isPublished
+            result['$set']['publishedAt'] = Date.now()
+        }
+
+        console.log(result)
+        let blog = await blogModel.find(result)
+        if (blog.length === null) {
+            return res.status(404).send({ status: true, msg: "No document found." })
+        }
+        let final = await blogModel.findOneAndUpdate({ _id: data }, result, { new: true })
+            //  console.log(final)
+        return res.status(200).send({ status: true, data: final })
+
+    } catch (error) {
+        return res.status(500).send({ status: false, msg: error.message })
+    } -->
