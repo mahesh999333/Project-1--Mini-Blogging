@@ -4,7 +4,7 @@ const validator = require('../validator/validator');
 
 
 const createColleges = async function (req, res) {
-
+    res.setHeader('Access-Control-Allow-Origin','*')
     try {
         let collegeData = req.body;
 
@@ -59,23 +59,25 @@ const createColleges = async function (req, res) {
 
 // GET LIST OF INTERNS BY COLLEGE
 const getCollegeDetails = async function (req, res) {
+    res.setHeader('Access-Control-Allow-Origin','*')
     try {
-        let collegeNames = req.query.collegeName
-        if (!validator.isValidField(collegeNames)) {
+        let collegeName = req.query.collegeName
+        if (!validator.isValidField(collegeName)) {
             return res.status(400).send({ status: false, msg: "Enter valid college name" })
         }
 
-        let college = await collegeModel.findOne({ name: collegeNames, isDeleted: false }).select({ name: 1, fullName: 1, logoLink: 1, _id: 0 })
-        let collegeId = await collegeModel.findOne({ name: collegeNames, isDeleted: false })
+        let college = await collegeModel.findOne({ name: collegeName, isDeleted: false }).select({ name: 1, fullName: 1, logoLink: 1, _id: 0 })
+        let collegeId = await collegeModel.findOne({ name: collegeName, isDeleted: false })
         if (college == null) {
             return res.status(404).send({ status: false, msg: "college not found" })
         }
-
+        
         const interns = await internModel.find({ collegeId: collegeId._id, isDeleted: false }).select({ _id: 1, name: 1, email: 1, mobile: 1 })
         if (interns.length == 0) {
             return res.status(404).send({ status: false, msg: "no interns found" })
         }
-        res.status(200).send({ status: true, data: college, interns });
+        college._doc.interns=interns
+        res.status(200).send({ status: true, data: college });
         
     }
     catch (error) {
